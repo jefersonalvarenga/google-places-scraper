@@ -12,9 +12,6 @@ COPY . ./
 # Build TypeScript
 RUN npm run build
 
-# Install Playwright browsers
-RUN npx playwright install chromium --with-deps
-
 # Remove dev dependencies to save space
 RUN npm prune --production
 
