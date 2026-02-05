@@ -1,0 +1,19 @@
+{
+  "name": "google-places-scraper-custom",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Custom Google Places scraper with website enrichment, Google Ads integration, and domain-based search",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "author": "Jeferson Alvarenga",
+  "license": "ISC",
+  "dependencies": {
+    "apify": "^3.1.0",
+    "crawlee": "^3.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

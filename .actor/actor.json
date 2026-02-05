@@ -1,0 +1,43 @@
+{
+  "actorSpecification": 1,
+  "name": "google-places-scraper-custom",
+  "title": "Google Places Scraper - Custom SDR Version",
+  "description": "Advanced Google Places scraper with website enrichment, Google Ads integration, domain-based search, and lead scoring. Perfect for SDR automation and lead generation.",
+  "version": "1.0.0",
+  "meta": {
+    "templateId": "playwright-crawler"
+  },
+  "input": "./INPUT_SCHEMA.json",
+  "dockerfile": "./Dockerfile",
+  "readme": "./README.md",
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "title": "Google Places Results",
+      "views": {
+        "overview": {
+          "title": "Overview",
+          "transformation": {
+            "fields": [
+              "title",
+              "categoryName",
+              "phone",
+              "website",
+              "domain",
+              "totalScore",
+              "reviewsCount",
+              "completenessScore",
+              "googleAdsCount",
+              "hasActiveAds",
+              "address",
+              "scrapedAt"
+            ]
+          },
+          "display": {
+            "component": "table"
+          }
+        }
+      }
+    }
+  }
+}

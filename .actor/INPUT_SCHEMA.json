@@ -1,0 +1,94 @@
+{
+  "title": "Google Places Scraper - Custom Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "searchMode": {
+      "title": "Search Mode",
+      "type": "string",
+      "description": "Choose how to search for places",
+      "enum": ["searchTerms", "domains"],
+      "enumTitles": ["By Search Terms (termo + localização)", "By Domains (busca pelo site)"],
+      "default": "searchTerms",
+      "editor": "select"
+    },
+    "searchTerms": {
+      "title": "Search Terms",
+      "type": "array",
+      "description": "List of search terms (e.g., 'clínica dermatológica'). Used when searchMode is 'searchTerms'.",
+      "editor": "stringList",
+      "example": [
+        "clínica dermatológica",
+        "dermatologista",
+        "spa facial"
+      ],
+      "prefill": ["clínica dermatológica"]
+    },
+    "location": {
+      "title": "Location",
+      "type": "string",
+      "description": "Location to search in (e.g., 'São Paulo, SP'). Used with searchTerms mode.",
+      "editor": "textfield",
+      "example": "São Paulo, SP",
+      "prefill": ""
+    },
+    "domains": {
+      "title": "Domains",
+      "type": "array",
+      "description": "List of domains to search for (e.g., 'example.com.br'). Used when searchMode is 'domains'.",
+      "editor": "stringList",
+      "example": [
+        "eclatclinica.com.br",
+        "example.com"
+      ]
+    },
+    "maxCrawledPlacesPerSearch": {
+      "title": "Max places per search",
+      "type": "integer",
+      "description": "Maximum number of places to extract per search term/domain",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 500
+    },
+    "language": {
+      "title": "Language",
+      "type": "string",
+      "description": "Language code for Google Maps",
+      "default": "pt-BR",
+      "enum": ["pt-BR", "en-US", "es-ES"],
+      "enumTitles": ["Português (Brasil)", "English (US)", "Español"],
+      "editor": "select"
+    },
+    "enrichWebsiteData": {
+      "title": "Enrich with website data",
+      "type": "boolean",
+      "description": "Extract additional data from business websites (emails, social media links, etc.)",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "getGoogleAdsCount": {
+      "title": "Get Google Ads count",
+      "type": "boolean",
+      "description": "Fetch the number of active Google Ads for each place (requires Google Ads Transparency actor)",
+      "default": false,
+      "editor": "checkbox"
+    },
+    "googleAdsActorId": {
+      "title": "Google Ads Actor ID",
+      "type": "string",
+      "description": "Actor ID for Google Ads Transparency scraper (format: username/actor-name). Required if getGoogleAdsCount is enabled.",
+      "editor": "textfield",
+      "example": "jefersonalvarenga/google-ads-scraper",
+      "prefill": ""
+    },
+    "maxConcurrency": {
+      "title": "Max concurrency",
+      "type": "integer",
+      "description": "Number of searches to process simultaneously",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10
+    }
+  },
+  "required": []
+}
