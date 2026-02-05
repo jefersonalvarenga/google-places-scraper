@@ -1,0 +1,17 @@
+{
+  "searchTerms": ["coffee shop"],
+  "categories": [],
+  "location": "Berlin, Germany",
+  "maxCrawledPlacesPerSearch": 3,
+  "language": "en",
+  "extractReviews": true,
+  "maxReviews": 20,
+  "extractImages": false,
+  "enrichContacts": true,
+  "enrichLeads": true,
+  "enrichSocialProfiles": ["facebook", "instagram", "tiktok", "youtube", "twitter"],
+  "proxy": {
+    "useApifyProxy": true,
+    "apifyProxyGroups": ["RESIDENTIAL"]
+  }
+}

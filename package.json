@@ -1,19 +1,28 @@
 {
-  "name": "google-places-scraper-custom",
+  "name": "jeferson-google-maps-scraper",
   "version": "1.0.0",
+  "description": "Google Maps scraper customizado - extrai dados de lugares, reviews e informações de contato",
   "type": "module",
-  "description": "Custom Google Places scraper with website enrichment, Google Ads integration, and domain-based search",
   "main": "main.js",
   "scripts": {
     "start": "node main.js"
   },
-  "author": "Jeferson Alvarenga",
-  "license": "ISC",
-  "dependencies": {
-    "apify": "^3.1.0",
-    "crawlee": "^3.5.0"
-  },
   "engines": {
-    "node": ">=18.0.0"
-  }
+    "node": ">=18"
+  },
+  "dependencies": {
+    "apify": "^3.0.0",
+    "crawlee": "^3.9.0",
+    "playwright": "^1.48.0"
+  },
+  "keywords": [
+    "google-maps",
+    "scraper",
+    "apify",
+    "playwright",
+    "web-scraping",
+    "lead-generation"
+  ],
+  "author": "Jeferson <brasilnatech@gmail.com>",
+  "license": "MIT"
 }
