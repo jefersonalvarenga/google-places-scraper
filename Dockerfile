@@ -1,4 +1,4 @@
-FROM apify/actor-node:20
+FROM apify/actor-node-playwright-chromium:20
 
 # Copy all files
 COPY . ./
