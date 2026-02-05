@@ -5,6 +5,9 @@
   "env": {
     "APIFY_MEMORY_MBYTES": "4096"
   },
-  "standbyPort": 8000
+  "standbyPort": 8000,
+  "defaultRunOptions": {
+    "timeout": 900
+  }
 }
 
