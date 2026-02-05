@@ -84,11 +84,16 @@ export function buildPlaceUniqueKey(params: {
   const { placeId, placeUrl } = params;
 
   if (placeId && placeId.trim()) {
-    return `placeId:${placeId}`;  // linha 87
+    const sanitizedId = placeId.replace(/:/g, '-');
+    return `placeId-${sanitizedId}`;
   }
 
   if (placeUrl && placeUrl.trim()) {
-    return `url:${normalizePlaceUrl(placeUrl)}`;  // linha 91
+    const normalized = normalizePlaceUrl(placeUrl);
+    const urlKey = Buffer.from(normalized).toString('base64')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 100);
+    return `url-${urlKey}`;
   }
 
   return null;
