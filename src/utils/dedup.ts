@@ -15,7 +15,7 @@ export class PlaceDeduper {
   }
 
   static async create(maxSize = 50000): Promise<PlaceDeduper> {
-    const store = await Actor.openKeyValueStore('PLACE_DEDUP');
+    const store = await Actor.openKeyValueStore('place-dedup');
     log.info('PlaceDeduper initialized', { maxSize, storeId: store.id });
     return new PlaceDeduper(store, maxSize);
   }
@@ -69,7 +69,7 @@ export class ReviewDeduper {
   }
 
   static async create(maxSize = 100000): Promise<ReviewDeduper> {
-    const store = await Actor.openKeyValueStore('REVIEW_DEDUP');
+    const store = await Actor.openKeyValueStore('review-dedup');
     log.info('ReviewDeduper initialized', { maxSize, storeId: store.id });
     return new ReviewDeduper(store, maxSize);
   }
