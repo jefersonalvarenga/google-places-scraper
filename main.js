@@ -5,9 +5,9 @@ await Actor.init();
 
 const input = await Actor.getInput();
 const {
+    searchMode = 'searchTerms',
     searchTerms = [],
     location = '',
-    searchByDomain = false,
     domains = [],
     maxCrawledPlacesPerSearch = 100,
     language = 'pt-BR',
@@ -16,6 +16,9 @@ const {
     googleAdsActorId = '', // ID do actor Google Ads Transparency que criamos
     maxConcurrency = 3,
 } = input;
+
+// Convert searchMode to boolean for easier use
+const searchByDomain = searchMode === 'domains';
 
 // Validate input
 if (!searchByDomain && (!searchTerms || searchTerms.length === 0)) {
