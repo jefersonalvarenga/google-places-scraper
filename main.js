@@ -146,9 +146,9 @@ const crawler = new PlaywrightCrawler({
         log.info(`Processing: ${searchString} (mode: ${searchMode})`);
 
         try {
-            // Wait for results to load
-            await page.waitForLoadState('networkidle', { timeout: 60000 });
-            await page.waitForTimeout(3000);
+            // Wait for results to load (use domcontentloaded instead of networkidle to save memory)
+            await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
+            await page.waitForTimeout(5000); // Give more time for JS to render
 
             // Extract place data from the search results page
             const places = await page.evaluate(() => {
@@ -323,7 +323,9 @@ if (searchByDomain) {
     // Search by domain mode
     domains.forEach(domain => {
         const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
-        const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(cleanDomain)}?hl=${language}`;
+        // Use quotes around domain for better search results
+        const searchQuery = `"${cleanDomain}"`;
+        const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}?hl=${language}`;
 
         requests.push({
             url: searchUrl,
