@@ -84,11 +84,11 @@ export function buildPlaceUniqueKey(params: {
   const { placeId, placeUrl } = params;
 
   if (placeId && placeId.trim()) {
-    return `placeId:${placeId}`;
+    return `placeId:${placeId}`;  // linha 87
   }
 
   if (placeUrl && placeUrl.trim()) {
-    return `url:${normalizePlaceUrl(placeUrl)}`;
+    return `url:${normalizePlaceUrl(placeUrl)}`;  // linha 91
   }
 
   return null;
