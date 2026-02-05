@@ -1,372 +1,398 @@
-# Google Places Scraper - Custom SDR Version
+# Google Maps Business Scraper (Places, Reviews & Enrichment)
 
-🚀 Advanced Google Places scraper designed for SDR automation and lead generation. Enriches data with website information, Google Ads activity, and provides lead quality scoring.
+This Actor scrapes **Google Maps business listings** and optionally enriches each place with:
 
----
+- **Contacts** (emails, phones, contact/about URLs)
+- **Social profiles** (Facebook, Instagram, TikTok, YouTube, Twitter)
+- **Leads** (potential people of interest inferred from LinkedIn links on company/team pages)
 
-## 🌟 Features
+It is built with:
 
-### Core Scraping
-✅ **Complete Google Maps data** - Business name, category, address, phone, website, ratings, reviews, hours
-✅ **Domain-based search** - Search by website domain (more precise than name+location)
-✅ **Traditional search** - Search by keywords + location
-✅ **Batch processing** - Process thousands of places efficiently
+- [Apify SDK v3](https://docs.apify.com/sdk/js) (`Actor.main`)
+- [Crawlee](https://crawlee.dev/) `PlaywrightCrawler`
+- [Playwright](https://playwright.dev/) (headless Chromium)
+- **TypeScript** in strict mode
 
-### Advanced Enrichment
-✅ **Website data extraction** - Emails, social media links, meta tags, WhatsApp presence
-✅ **Google Ads integration** - Automatically fetch active ads count for each business
-✅ **Lead quality scoring** - 0-100% completeness score based on available data
-✅ **Domain extraction** - Automatically extracts clean domain from website URL
-
-### SDR Optimization
-✅ **Structured output** - Ready for n8n/Zapier/Make integration
-✅ **Deduplication** - Prevents processing the same place twice
-✅ **Error handling** - Continues on failures, logs detailed errors
-✅ **Parallel processing** - Fast execution with configurable concurrency
+The Actor is designed for **Apify Store** monetization, with clear enrichment counters and robust soft‑block handling.
 
 ---
 
-## 📥 Input
+## Features
 
-### Search Mode 1: By Search Terms (Traditional)
+### Search & discovery
 
-```json
-{
-  "searchMode": "searchTerms",
-  "searchTerms": [
-    "clínica dermatológica",
-    "dermatologista"
-  ],
-  "location": "São Paulo, SP",
-  "maxCrawledPlacesPerSearch": 100,
-  "enrichWebsiteData": true,
-  "getGoogleAdsCount": true,
-  "googleAdsActorId": "jefersonalvarenga/google-ads-scraper"
+- Uses Google Maps search UI (tiling + sidebar scrolling).
+- Deduplicates places using a persistent key‑value store (`PLACE_DEDUP`).
+- Respects `maxCrawledPlacesPerSearch` per search job.
+
+### Place details
+
+For every discovered place, the Actor opens the **place detail pane** and extracts:
+
+- Title, categories, description
+- Full structured address (street, city, state, postal code, country)
+- Coordinates (`lat`, `lng`) derived from URL where possible
+- Identifiers: `placeId`, `cid`, `googleMapsUrl`
+- Phone, website
+- Opening hours and a coarse **price level** (`$`, `$$`, ...)
+- Flags for `permanentlyClosed` and `temporarilyClosed`
+
+### Reviews (optional, core revenue feature)
+
+If enabled, the Actor opens the **Reviews tab/modal** and scrolls through reviews until:
+
+- No new reviews appear, or
+- The configured `maxReviews` per place is reached.
+
+For each review it extracts:
+
+- Review ID (from DOM or deterministic hash fallback)
+- Reviewer name, profile URL, profile photo URL
+- Rating
+- Text
+- Like / helpful count
+- Local Guide status
+- Owner response (if any)
+- Images (if any)
+- Timestamp (as displayed in the UI)
+
+Reviews are deduplicated using a persistent `REVIEW_DEDUP` store and pushed to a dedicated **`reviews` dataset**, one review per row.
+
+### Contacts enrichment (optional, billable)
+
+If `enrichContacts` is `true` and a place has a website:
+
+- The Actor fetches the homepage and a small set of likely contact/about URLs
+  (`/contact`, `/contact-us`, `/about`, etc.).
+- It respects `robots.txt` per origin and uses per‑request timeouts.
+- It extracts:
+  - Emails
+  - Phone numbers
+  - Contact/about page URLs
+
+The results are stored under:
+
+- `place.enrichment.contacts` (emails, phones)
+- `place.additionalInfo.contactPageUrls`
+
+### Social profiles enrichment (optional, billable)
+
+If `enrichSocialProfiles` contains any networks and a place has a website:
+
+- The Actor scans the HTML for links to supported networks:
+  - `facebook`
+  - `instagram`
+  - `tiktok`
+  - `youtube`
+  - `twitter` (X)
+- For each enabled network it stores a `SocialProfile` object with:
+  - `type` (network)
+  - `url` (absolute URL)
+  - `username` (derived from URL path where possible)
+
+Profiles are stored under `place.enrichment.socialProfiles`.
+
+### Leads enrichment (optional, billable)
+
+If `enrichLeads` is `true` and a place has a website:
+
+- The Actor fetches a limited set of pages (homepage + likely team/leadership URLs).
+- It scans for **LinkedIn** links and tries to infer:
+  - Full name
+  - Job title
+  - LinkedIn URL
+
+Every inferred lead is pushed to a separate **`leads` dataset** row, and an array of leads is also stored under `place.enrichment.leads`.
+
+### Reliability & soft‑block handling
+
+- Uses `PlaywrightCrawler` with **session pool** and `maxRequestRetries`.
+- Detects soft blocks / captchas on search, place detail, and reviews pages.
+- When blocked, marks the session as bad (`session.markBad()`) and throws to trigger Crawlee retries.
+- Adds small **random delays** between scrolls to reduce detection.
+- Uses bounded in‑memory maps for deduplication to avoid memory blow‑ups.
+
+### Summary counters (for monetization)
+
+At the end of each run the Actor logs an aggregate summary:
+
+- `placesScraped`
+- `reviewsScraped`
+- `enrichmentStats`:
+  - `contactsEnrichedCount`
+  - `leadsEnrichedCount`
+  - `socialProfilesEnrichedCount`
+
+These are ideal for usage‑based pricing or billing in the Apify Store.
+
+---
+
+## Input configuration
+
+The Actor reads input according to `input-schema.json`.
+
+### Search parameters
+
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `searchTerms` | `string[]` | `[]` | List of free‑text search terms (e.g. `["restaurants", "dentist"]`). |
+| `categories` | `string[]` | `[]` | Optional categories to combine with each search term (e.g. `["hotel", "coffee shop"]`). |
+| `location` | `string` | `""` | Free‑text location such as `"Berlin, Germany"`. Used if `customGeolocation` is not provided. |
+| `customGeolocation` | GeoJSON object | `{}` | Optional custom geometry: `Point`, `Polygon`, or `MultiPolygon`. |
+
+### Crawling & language
+
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `maxCrawledPlacesPerSearch` | `integer` | `500` | Maximum places to crawl per search job. |
+| `language` | `string` | `"en"` | Google Maps UI language code (e.g. `"en"`, `"de"`, `"fr"`). |
+
+### Reviews
+
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `extractReviews` | `boolean` | `true` | If `true`, enqueue review scraping for each place. |
+| `maxReviews` | `integer` | `5000` | Maximum number of reviews per place. `0` disables review scraping. |
+
+### Enrichment (billable)
+
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `extractImages` | `boolean` | `true` | Placeholder for future image metadata extraction. |
+| `enrichContacts` | `boolean` | `false` | If `true`, crawl websites for emails, phones, and contact URLs. |
+| `enrichLeads` | `boolean` | `false` | If `true`, discover potential leads via LinkedIn links. |
+| `enrichSocialProfiles` | array of `"facebook" \| "instagram" \| "tiktok" \| "youtube" \| "twitter"` | `[]` | Which networks to enrich on each place website. |
+
+### Proxy configuration
+
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `proxy.useApifyProxy` | `boolean` | `true` | Use Apify Proxy. Recommended for production. |
+| `proxy.apifyProxyGroups` | `string[]` | `[]` | e.g. `["RESIDENTIAL"]` for residential proxies. |
+| `proxy.apifyProxyCountry` | `string` | `undefined` | Country code such as `"US"`, `"DE"`. |
+| `proxy.proxyUrls` | `string[]` | `[]` | Custom proxy URLs instead of Apify Proxy. |
+
+---
+
+## Output datasets
+
+### `places`
+
+One item per place, conforming to the internal `Place` type. Important fields:
+
+- **Core identity**
+  - `id` (stable place key)
+  - `searchJobId`
+  - `googleMapsUrl`
+  - `placeId`, `cid`, `fid`
+- **Business info**
+  - `title`
+  - `primaryCategory`, `categories[]`
+  - `description`
+  - `priceLevel`
+- **Address & location**
+  - `address.fullAddress`, `address.street`, `city`, `state`, `postalCode`, `country`
+  - `location.lat`, `location.lng`
+  - `plusCode`
+- **Contact**
+  - `phone.formatted`, `phone.e164`
+  - `website`
+- **Hours & status**
+  - `openingHours`
+  - `permanentlyClosed`, `temporarilyClosed`
+- **Enrichment** (optional)
+  - `enrichment.contacts`
+  - `enrichment.socialProfiles[]`
+  - `enrichment.leads[]`
+  - `additionalInfo.contactPageUrls`
+- **Timestamps**
+  - `createdAt`, `updatedAt`
+
+### `reviews`
+
+One item per review, conforming to `Review` type:
+
+- `id` (Maps ID or deterministic hash)
+- `placeId`
+- `searchJobId`
+- `reviewerName`, `reviewerProfileUrl`, `reviewerPhotoUrl`
+- `rating`
+- `text`
+- `likesCount`
+- `isLocalGuide`
+- `reviewImages[]`
+- `ownerResponse`
+- `publishedAt`
+- `scrapedAt`
+
+### `leads`
+
+One item per potential lead, conforming to `Lead` type:
+
+- `id` (hash: `"lead:..."`)
+- `placeId`
+- `fullName`
+- `jobTitle`
+- `department`
+- `linkedinUrl`
+- `email`
+- `phone`
+- `companySize`
+- `industry`
+- `sourceUrl` (page where the LinkedIn link was found)
+
+---
+
+## Running the Actor
+
+### On Apify Platform
+
+1. Go to the Actor page.
+2. Click **Try actor**.
+3. Fill the input using the schema above.
+4. Run the Actor.
+5. Inspect your run:
+   - `places`, `reviews`, and `leads` datasets in the **Storage** tab.
+   - Final summary log showing `placesScraped`, `reviewsScraped`, and `enrichmentStats`.
+
+### Locally with Node.js
+
+#### 1. Install dependencies
+
+```bash
+npm install
+```
+
+#### 2. Build the TypeScript sources
+
+```bash
+npm run build
+```
+
+#### 3. Install Playwright browsers (required for local runs)
+
+Playwright needs browser binaries. On your machine, run **once**:
+
+```bash
+npx playwright install --with-deps
+```
+
+> On Apify platform, the official Playwright images already include browsers, so you usually do **not** need this step there.
+
+#### 4. Run with `APIFY_INPUT`
+
+```bash
+APIFY_LOCAL_STORAGE_DIR=./apify_storage_dev \
+APIFY_INPUT='{
+  "searchTerms": ["coffee shop"],
+  "categories": [],
+  "location": "Berlin, Germany",
+  "maxCrawledPlacesPerSearch": 5,
+  "language": "en",
+  "extractReviews": true,
+  "maxReviews": 20,
+  "extractImages": false,
+  "enrichContacts": true,
+  "enrichLeads": true,
+  "enrichSocialProfiles": ["facebook", "instagram"],
+  "proxy": { "useApifyProxy": false }
+}' \
+node dist/main.js
+```
+
+Outputs will be saved under `./apify_storage_dev/datasets/places`, `reviews`, and `leads`.
+
+---
+
+## Programmatic usage (Node.js / TypeScript)
+
+### Calling the Actor on Apify
+
+```ts
+import { ApifyClient } from 'apify-client';
+
+async function main() {
+  const client = new ApifyClient({ token: process.env.APIFY_TOKEN! });
+
+  const input = {
+    searchTerms: ['coffee shop'],
+    location: 'Berlin, Germany',
+    maxCrawledPlacesPerSearch: 5,
+    extractReviews: true,
+    maxReviews: 20,
+    enrichContacts: true,
+    enrichLeads: true,
+    enrichSocialProfiles: ['facebook', 'instagram'],
+  };
+
+  const run = await client.actor('USERNAME/google-maps-scraper-actor-ts').call({ input });
+
+  console.log('Run finished with status:', run.status);
 }
-```
 
-### Search Mode 2: By Domains (More Precise!)
-
-```json
-{
-  "searchMode": "domains",
-  "domains": [
-    "eclatclinica.com.br",
-    "masterhealth.com.br"
-  ],
-  "maxCrawledPlacesPerSearch": 50,
-  "enrichWebsiteData": true,
-  "getGoogleAdsCount": true,
-  "googleAdsActorId": "jefersonalvarenga/google-ads-scraper"
-}
-```
-
-### Parameters Explained
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `searchMode` | enum | "searchTerms" | "searchTerms" or "domains" |
-| `searchTerms` | array | [] | Keywords to search (when mode=searchTerms) |
-| `location` | string | "" | Location filter (when mode=searchTerms) |
-| `domains` | array | [] | Domains to search (when mode=domains) |
-| `maxCrawledPlacesPerSearch` | number | 100 | Max results per search |
-| `language` | string | "pt-BR" | Language code |
-| `enrichWebsiteData` | boolean | true | Extract data from websites |
-| `getGoogleAdsCount` | boolean | false | Fetch Google Ads count |
-| `googleAdsActorId` | string | "" | Actor ID for ads scraper |
-| `maxConcurrency` | number | 3 | Parallel requests |
-
----
-
-## 📤 Output
-
-### Standard Fields
-
-```json
-{
-  "title": "Dra Luciane Faleiros Lombello",
-  "categoryName": "Clínica de dermatologia",
-  "address": "Av. José de Sousa Campos, 1073 - Cambuí, Campinas - SP",
-  "phone": "+55 19 99219-4292",
-  "website": "http://www.clinicareviva.com.br/",
-  "domain": "clinicareviva.com.br",
-  "totalScore": 4.9,
-  "reviewsCount": 214,
-  "openingHours": [
-    { "day": "segunda-feira", "hours": "08:00 to 19:00" },
-    { "day": "terça-feira", "hours": "08:00 to 19:00" }
-  ],
-  "placeId": "ChIJzdCgWBLPyJQRPeg8J6XJdMU",
-  "url": "https://www.google.com/maps/...",
-  "completenessScore": 95,
-  "scrapedAt": "2026-02-05T00:00:00.000Z"
-}
-```
-
-### Website Enrichment (when enabled)
-
-```json
-{
-  "websiteEnrichment": {
-    "status": "success",
-    "title": "Clínica Reviva - Dermatologia",
-    "description": "Clínica especializada em tratamentos dermatológicos...",
-    "emails": [
-      "contato@clinicareviva.com.br",
-      "agendamento@clinicareviva.com.br"
-    ],
-    "socialLinks": {
-      "instagram": "https://instagram.com/clinicareviva",
-      "facebook": "https://facebook.com/clinicareviva"
-    },
-    "hasWhatsApp": true,
-    "extractedAt": "2026-02-05T00:00:00.000Z"
-  }
-}
-```
-
-### Google Ads Data (when enabled)
-
-```json
-{
-  "googleAdsCount": 91,
-  "hasActiveAds": true
-}
+void main();
 ```
 
 ---
 
-## 🎯 Use Cases
+## Monetization & billing
 
-### 1. Lead Generation for Clinics
-```json
-{
-  "searchTerms": ["clínica estética", "dermatologista"],
-  "location": "São Paulo, SP",
-  "enrichWebsiteData": true,
-  "getGoogleAdsCount": true
-}
-```
+You can base billing on the final summary counters:
 
-**Result:** Find clinics with active ads (likely have budget) and complete contact info.
+- **Core scraping**: number of `placesScraped` and `reviewsScraped`.
+- **Enrichment events**:
+  - `contactsEnrichedCount` – how many places had contacts enriched.
+  - `leadsEnrichedCount` – how many leads were discovered.
+  - `socialProfilesEnrichedCount` – total number of social profiles enriched.
 
-### 2. Competitor Analysis
-```json
-{
-  "domains": [
-    "competitor1.com.br",
-    "competitor2.com.br"
-  ],
-  "getGoogleAdsCount": true
-}
-```
+Examples of pricing models:
 
-**Result:** See which competitors are advertising and their online presence.
-
-### 3. Market Research
-```json
-{
-  "searchTerms": ["dermatologia", "estética facial"],
-  "location": "Rio de Janeiro, RJ",
-  "maxCrawledPlacesPerSearch": 500
-}
-```
-
-**Result:** Map the entire market in a region.
+- Tiered plans by maximum `placesScraped` per run.
+- Add‑on fees for enabling `enrichContacts`, `enrichLeads`, or `enrichSocialProfiles`.
+- Per‑lead or per‑profile pricing for enterprise users.
 
 ---
 
-## 💰 Cost Estimate
+## Reliability & best practices
 
-| Operation | Time | Cost per place |
-|-----------|------|----------------|
-| Basic scraping | ~5-10s | $0.002-0.003 |
-| + Website enrichment | +3-5s | $0.001-0.002 |
-| + Google Ads count | +1s (batch) | $0.0002 |
-| **Total (all features)** | ~8-15s | **$0.003-0.005** |
-
-**Example:**
-- 1,000 places with all features = **$3-5**
-- 10,000 places = **$30-50**
-
----
-
-## 🔗 Integration with n8n
-
-### Webhook Trigger
-
-```javascript
-// Start actor run via n8n HTTP Request node
-POST https://api.apify.com/v2/acts/YOUR_USERNAME~google-places-scraper-custom/runs
-Headers:
-  Authorization: Bearer YOUR_TOKEN
-  Content-Type: application/json
-
-Body:
-{
-  "searchTerms": ["{{$node["Trigger"].json["keyword"]}}"],
-  "location": "{{$node["Trigger"].json["location"]}}",
-  "enrichWebsiteData": true,
-  "getGoogleAdsCount": true,
-  "webhooks": [{
-    "eventTypes": ["ACTOR.RUN.SUCCEEDED"],
-    "requestUrl": "https://your-n8n.com/webhook/places-results"
-  }]
-}
-```
-
-### Process Results
-
-```javascript
-// n8n Webhook node receives results
-const results = $input.all();
-
-// Filter high-quality leads
-const qualityLeads = results.filter(place =>
-  place.completenessScore >= 80 &&
-  place.website &&
-  place.phone &&
-  place.hasActiveAds === true
-);
-
-// Send to CRM, email, etc.
-```
+- **Proxies**
+  - For production‑scale scraping, use Apify residential proxies:
+    - `proxy.useApifyProxy: true`
+    - `proxy.apifyProxyGroups: ["RESIDENTIAL"]`
+- **Concurrency**
+  - Increase concurrency carefully on Apify Platform and monitor for soft‑block logs.
+- **Soft blocks / captchas**
+  - The Actor detects them and marks sessions bad to trigger retries.
+  - If you see many soft‑block warnings, reduce concurrency and ensure proxies are configured.
+- **Limits**
+  - Tune `maxCrawledPlacesPerSearch` and `maxReviews` to balance cost vs. coverage.
+  - Leads enrichment is internally capped to a small number of pages and leads per place to avoid runaway usage.
 
 ---
 
-## 🚀 Quick Start
+## Troubleshooting
 
-### 1. Deploy to Apify
+- **0 places scraped**
+  - Check that your `searchTerms` and `location` actually return results in Google Maps.
+  - Verify that you did not set `maxCrawledPlacesPerSearch` to `0`.
 
-#### Option A: From Console
-1. Create new Actor in Apify Console
-2. Copy all files to the editor
-3. Build & Run
+- **Lots of soft‑block / captcha warnings**
+  - Enable Apify residential proxy groups.
+  - Lower concurrency.
+  - Narrow the geographic area.
 
-#### Option B: From GitHub
-1. Push code to GitHub repository
-2. Connect repository in Apify
-3. Auto-deploy on push
+- **No reviews dataset**
+  - Ensure `extractReviews` is `true` and `maxReviews` is `> 0`.
 
-### 2. Configure Google Ads Integration
+- **No enrichment fields**
+  - Ensure `enrichContacts`, `enrichLeads`, or `enrichSocialProfiles` are enabled.
+  - Check that the places actually have a `website` field.
 
-First deploy the **Google Ads Transparency actor**, then use its ID:
+- **Local run: "Failed to launch browser"**
+  - Make sure you executed:
+    ```bash
+    npx playwright install --with-deps
+    ```
+  - If you still have issues, check Playwright docs for your OS.
 
-```json
-{
-  "getGoogleAdsCount": true,
-  "googleAdsActorId": "jefersonalvarenga/google-ads-scraper"
-}
-```
-
-### 3. Run First Test
-
-```json
-{
-  "searchTerms": ["clínica dermatológica"],
-  "location": "Campinas, SP",
-  "maxCrawledPlacesPerSearch": 10,
-  "enrichWebsiteData": true
-}
-```
-
----
-
-## 📊 Lead Quality Score
-
-The `completenessScore` (0-100%) is calculated based on:
-
-- ✅ Has title (business name)
-- ✅ Has phone number
-- ✅ Has website
-- ✅ Has address
-- ✅ Has rating
-- ✅ Has reviews (count > 0)
-- ✅ Has opening hours
-- ✅ Has categories
-
-**Scoring:**
-- 100% = All 8 fields present (perfect lead)
-- 75-99% = High quality (missing 1-2 fields)
-- 50-74% = Medium quality (missing 3-4 fields)
-- <50% = Low quality (incomplete data)
-
----
-
-## 🔧 Advanced Configuration
-
-### Batch Processing Strategy
-
-For processing thousands of places:
-
-```json
-{
-  "searchTerms": ["dermato", "estética", "spa"],
-  "location": "São Paulo, SP",
-  "maxCrawledPlacesPerSearch": 200,
-  "maxConcurrency": 5,
-  "enrichWebsiteData": false  // Disable for speed
-}
-```
-
-Then run a second actor to enrich high-scoring leads:
-
-```json
-{
-  "domains": ["lead1.com", "lead2.com", ...],
-  "enrichWebsiteData": true,
-  "getGoogleAdsCount": true
-}
-```
-
----
-
-## ⚠️ Important Notes
-
-### Rate Limiting
-- Google Maps may block if too many requests
-- Use maxConcurrency: 3-5 for safety
-- Add delays between batches
-
-### Data Accuracy
-- Website enrichment depends on site structure
-- Some sites may block scraping
-- Ads count requires separate actor
-
-### Privacy
-- Respect robots.txt
-- Don't scrape personal data
-- Use for B2B lead generation only
-
----
-
-## 📝 Changelog
-
-### v1.0.0 (Initial Release)
-- ✅ Google Maps scraping (name, address, phone, etc.)
-- ✅ Domain-based search
-- ✅ Website data enrichment
-- ✅ Google Ads integration
-- ✅ Lead quality scoring
-- ✅ n8n-ready output
-- ✅ Batch processing support
-
----
-
-## 🆘 Support
-
-For issues or questions:
-1. Check Apify logs for detailed error messages
-2. Verify input parameters are correct
-3. Test with small batch first (maxCrawledPlacesPerSearch: 10)
-4. Check Google Ads actor is deployed (if using integration)
-
----
-
-## 📄 License
-
-ISC License - Free to use and modify
-
----
-
-**Built for SDR automation by Jeferson Alvarenga 🚀**
+This Actor is ready for Apify Store publishing and long‑term maintenance, with clean separation of scraping and enrichment layers and clear billing counters.

@@ -1,0 +1,10 @@
+{
+  "name": "google-maps-scraper",
+  "version": "0.0.5",
+  "buildTag": "latest",
+  "env": {
+    "APIFY_MEMORY_MBYTES": "4096"
+  },
+  "standbyPort": 8000
+}
+

@@ -1,0 +1,131 @@
+{
+  "title": "Google Maps Scraper Input",
+  "description": "Configuration for Google Maps scraping Actor (skeleton).",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "searchTerms": {
+      "title": "Search terms",
+      "type": "array",
+      "description": "List of free-text search terms, e.g. ['restaurants', 'dentist'].",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "categories": {
+      "title": "Categories",
+      "type": "array",
+      "description": "Optional list of categories to combine with each search term, e.g. ['hotel', 'coffee shop'].",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "location": {
+      "title": "Location (text)",
+      "type": "string",
+      "description": "Free-text location such as 'Berlin, Germany'. Used when no customGeolocation is provided.",
+      "default": ""
+    },
+    "customGeolocation": {
+      "title": "Custom geolocation (GeoJSON)",
+      "type": "object",
+      "description": "Optional GeoJSON geometry object describing search area. Supports Point (with optional radiusKm), Polygon, and MultiPolygon.",
+      "default": {},
+      "additionalProperties": true
+    },
+    "maxCrawledPlacesPerSearch": {
+      "title": "Max places per search",
+      "type": "integer",
+      "description": "Maximum number of places to crawl for each search job.",
+      "minimum": 1,
+      "default": 500
+    },
+    "language": {
+      "title": "Interface language",
+      "type": "string",
+      "description": "Interface language code for Google Maps UI (e.g. 'en', 'de', 'fr').",
+      "default": "en"
+    },
+    "extractReviews": {
+      "title": "Extract reviews",
+      "type": "boolean",
+      "description": "Whether to enqueue review scraping for each place.",
+      "default": true
+    },
+    "maxReviews": {
+      "title": "Maximum reviews per place",
+      "type": "integer",
+      "description": "Maximum number of reviews to extract per place (0 means skip reviews).",
+      "minimum": 0,
+      "default": 5000
+    },
+    "extractImages": {
+      "title": "Extract images metadata",
+      "type": "boolean",
+      "description": "Whether to extract image URLs and basic metadata for each place.",
+      "default": true
+    },
+    "enrichContacts": {
+      "title": "Enrich company contacts",
+      "type": "boolean",
+      "description": "If true, crawl business websites to extract emails, phones, and social links (billable per enrichment event).",
+      "default": false
+    },
+    "enrichLeads": {
+      "title": "Enrich business leads",
+      "type": "boolean",
+      "description": "If true, attempt to infer key leads (name, job title, LinkedIn profile, etc.) from business websites (billable per enrichment event).",
+      "default": false
+    },
+    "enrichSocialProfiles": {
+      "title": "Social profile enrichment",
+      "type": "array",
+      "description": "List of social networks to enrich for each place. Each value enables enrichment and billing for that network.",
+      "items": {
+        "type": "string",
+        "enum": ["facebook", "instagram", "tiktok", "youtube", "twitter"]
+      },
+      "default": []
+    },
+    "proxy": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Proxy configuration. Use Apify Proxy (residential recommended) for reliable large-scale scraping.",
+      "properties": {
+        "useApifyProxy": {
+          "title": "Use Apify Proxy",
+          "type": "boolean",
+          "default": true
+        },
+        "apifyProxyGroups": {
+          "title": "Apify Proxy groups",
+          "type": "array",
+          "description": "Optional list of Apify Proxy groups. For example, ['RESIDENTIAL'] for residential proxies.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "apifyProxyCountry": {
+          "title": "Apify Proxy country",
+          "type": "string",
+          "description": "Two-letter country code for Apify Proxy geolocation (e.g. 'US', 'DE')."
+        },
+        "proxyUrls": {
+          "title": "Custom proxy URLs",
+          "type": "array",
+          "description": "Optional list of custom proxy URLs to be used instead of Apify Proxy.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "default": {
+        "useApifyProxy": true
+      }
+    }
+  },
+  "required": []
+}

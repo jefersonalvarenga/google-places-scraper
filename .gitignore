@@ -1,13 +1,23 @@
-# Dependency directories
+# Dependencies
 node_modules/
 package-lock.json
 
+# Build outputs
+dist/
+build/
+
 # Apify storage
-apify_storage/
 storage/
+apify_storage/
+
+# Environment variables
+.env
+.env.local
 
 # Logs
 *.log
+npm-debug.log*
+logs/
 
 # OS files
 .DS_Store
@@ -19,6 +29,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# Environment
-.env
-.env.local
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+.temp/
